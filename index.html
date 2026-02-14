@@ -431,6 +431,61 @@
             }
         }
 
+        /* 移动端底部翻页控件样式 */
+        .mobile-pagination {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            box-sizing: border-box;
+        }
+
+        .mobile-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            background-color: var(--accent);
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 100px;
+            justify-content: center;
+        }
+
+        .mobile-btn:hover {
+            background-color: #0077ed;
+            transform: translateY(-1px);
+        }
+
+        .mobile-btn:active {
+            transform: translateY(0);
+        }
+
+        .mobile-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .mobile-page-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            min-width: 120px;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-pagination {
+                display: flex;
+            }
+        }
+
         @media (max-width: 480px) {
             .header {
                 flex-direction: column;
@@ -496,6 +551,28 @@
             .header-right .btn-accent {
                 grid-column: 1 / -1;
             }
+
+            /* 移动端底部翻页控件样式优化 */
+            .mobile-pagination {
+                padding: 12px;
+                gap: 8px;
+            }
+
+            .mobile-btn {
+                padding: 10px 16px;
+                font-size: 13px;
+                min-width: 80px;
+            }
+
+            .mobile-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .mobile-page-info {
+                font-size: 13px;
+                min-width: 100px;
+            }
         }
     </style>
 </head>
@@ -547,6 +624,25 @@
                         <button class="btn" id="fullscreenBtn">全屏</button>
                     </div>
                 </div>
+                
+                <!-- 移动端底部翻页控件 -->
+                <div class="mobile-pagination">
+                    <button class="mobile-btn mobile-prev" id="mobilePrevBtn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>上一页</span>
+                    </button>
+                    <div class="mobile-page-info">
+                        <span id="mobilePageInfo">第 1 页，共 0 页</span>
+                    </div>
+                    <button class="mobile-btn mobile-next" id="mobileNextBtn">
+                        <span>下一页</span>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- 侧边栏 -->
@@ -586,6 +682,10 @@
         document.getElementById('downloadBtn').addEventListener('click', downloadDocument);
         themeToggle.addEventListener('click', toggleTheme);
         
+        // 移动端翻页按钮事件监听
+        document.getElementById('mobilePrevBtn').addEventListener('click', showPrevPage);
+        document.getElementById('mobileNextBtn').addEventListener('click', showNextPage);
+        
         // 文件上传处理
         document.getElementById('fileInput').addEventListener('change', handleFileUpload);
         
@@ -615,6 +715,13 @@
                     
                     document.querySelector('.document-title').textContent = '广东多可公司魔术涂料广告页电子书';
                     pageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+                    
+                    // 更新移动端页面信息
+                    const mobilePageInfo = document.getElementById('mobilePageInfo');
+                    if (mobilePageInfo) {
+                        mobilePageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+                    }
+                    
                     zoomLevel.textContent = '100%';
                     
                     // 渲染第一页
@@ -668,6 +775,13 @@
                         
                         document.querySelector('.document-title').textContent = file.name;
                         pageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+                        
+                        // 更新移动端页面信息
+                        const mobilePageInfo = document.getElementById('mobilePageInfo');
+                        if (mobilePageInfo) {
+                            mobilePageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+                        }
+                        
                         zoomLevel.textContent = '100%';
                         
                         // 渲染第一页
@@ -718,6 +832,12 @@
             await page.render(renderContext).promise;
             currentPage = pageNum;
             pageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+            
+            // 更新移动端页面信息
+            const mobilePageInfo = document.getElementById('mobilePageInfo');
+            if (mobilePageInfo) {
+                mobilePageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+            }
             
             // 更新缩略图激活状态
             updateThumbnailActiveState();
