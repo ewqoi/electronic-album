@@ -99,6 +99,71 @@
             opacity: 0.8;
         }
 
+        .user-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-avatar:hover {
+            background-color: #0077ed;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px var(--shadow);
+            padding: 8px;
+            min-width: 160px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            border: none;
+            background: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-dropdown-item:hover {
+            background-color: var(--bg-primary);
+        }
+
+        .user-dropdown-item.logout {
+            color: #ff3b30;
+        }
+
         /* 按钮样式 */
         .btn {
             padding: 8px 16px;
@@ -182,17 +247,19 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
+            overflow: auto;
             margin-bottom: 24px;
             display: flex;
             justify-content: center;
             align-items: flex-start;
+            min-height: 500px;
         }
 
         .pdf-container canvas {
             width: 100%;
             height: auto;
             display: block;
+            object-fit: contain;
         }
 
         [data-theme="dark"] .pdf-container {
@@ -550,6 +617,14 @@
 
             .pdf-container {
                 border-radius: 6px;
+                min-height: 600px;
+                overflow: auto;
+            }
+
+            .pdf-container canvas {
+                max-width: 100% !important;
+                height: auto !important;
+                object-fit: contain !important;
             }
 
             .toolbar {
@@ -622,6 +697,16 @@
                 <input type="file" id="fileInput" accept=".pdf" style="display: none;">
                 <button class="btn" id="shareBtn">分享</button>
                 <button class="btn btn-accent" id="downloadBtn">下载</button>
+                <!-- 登录/用户菜单 -->
+                <div id="loginButton" class="btn" onclick="window.location.href='login.html'">登录</div>
+                <div id="userMenu" class="user-menu" style="display: none;">
+                    <div class="user-avatar" id="userAvatar"></div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <button class="user-dropdown-item" id="userProfile">个人资料</button>
+                        <button class="user-dropdown-item" id="userSettings">设置</button>
+                        <button class="user-dropdown-item logout" id="userLogout">退出登录</button>
+                    </div>
+                </div>
                 <button class="theme-toggle" id="themeToggle">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -750,6 +835,70 @@
         document.getElementById('mobilePrevBtn').addEventListener('click', showPrevPage);
         document.getElementById('mobileNextBtn').addEventListener('click', showNextPage);
         
+        // 用户菜单事件监听
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            
+            // 用户头像点击事件
+            const userAvatar = document.getElementById('userAvatar');
+            if (userAvatar) {
+                userAvatar.addEventListener('click', toggleUserDropdown);
+            }
+            
+            // 退出登录按钮点击事件
+            const userLogout = document.getElementById('userLogout');
+            if (userLogout) {
+                userLogout.addEventListener('click', logout);
+            }
+            
+            // 点击页面其他地方关闭下拉菜单
+            document.addEventListener('click', function(event) {
+                const userMenu = document.getElementById('userMenu');
+                const userDropdown = document.getElementById('userDropdown');
+                if (userMenu && !userMenu.contains(event.target)) {
+                    userDropdown.classList.remove('show');
+                }
+            });
+        });
+        
+        // 检查登录状态
+        function checkLoginStatus() {
+            const user = localStorage.getItem('user');
+            const loginButton = document.getElementById('loginButton');
+            const userMenu = document.getElementById('userMenu');
+            const userAvatar = document.getElementById('userAvatar');
+            
+            if (user) {
+                const userData = JSON.parse(user);
+                // 显示用户菜单
+                loginButton.style.display = 'none';
+                userMenu.style.display = 'inline-block';
+                
+                // 设置用户头像
+                if (userAvatar) {
+                    const initial = userData.name.charAt(0).toUpperCase();
+                    userAvatar.textContent = initial;
+                }
+            } else {
+                // 显示登录按钮
+                loginButton.style.display = 'block';
+                userMenu.style.display = 'none';
+            }
+        }
+        
+        // 切换用户下拉菜单
+        function toggleUserDropdown() {
+            const userDropdown = document.getElementById('userDropdown');
+            userDropdown.classList.toggle('show');
+        }
+        
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('user');
+            alert('已退出登录');
+            window.location.reload();
+        }
+        
         // 文件上传处理
         document.getElementById('fileInput').addEventListener('change', handleFileUpload);
         
@@ -848,13 +997,24 @@
         // 渲染页面
         async function renderPage(pageNum) {
             const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: zoom });
+            
+            // 计算合适的缩放级别，确保PDF内容完整显示
+            const containerWidth = document.querySelector('.pdf-container').clientWidth;
+            const containerHeight = document.querySelector('.pdf-container').clientHeight;
+            const viewport = page.getViewport({ scale: 1 });
+            
+            // 计算基于宽度和高度的缩放级别，确保完整显示
+            const scaleByWidth = containerWidth / viewport.width;
+            const scaleByHeight = containerHeight / viewport.height;
+            const scale = Math.min(scaleByWidth, scaleByHeight, 1.5); // 限制最大缩放级别
+            
+            const scaledViewport = page.getViewport({ scale: scale * zoom });
             
             // 创建 canvas 元素
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+            canvas.width = scaledViewport.width;
+            canvas.height = scaledViewport.height;
             canvas.className = 'pdf-page';
             
             // 找到现有的pdf-container或创建一个
@@ -925,7 +1085,7 @@
             // 渲染 PDF 内容
             const renderContext = {
                 canvasContext: ctx,
-                viewport: viewport
+                viewport: scaledViewport
             };
             
             await page.render(renderContext).promise;

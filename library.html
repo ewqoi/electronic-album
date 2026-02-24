@@ -169,6 +169,72 @@
             color: var(--accent);
         }
 
+        /* 用户菜单样式 */
+        .user-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-avatar:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px var(--shadow);
+            padding: 8px;
+            min-width: 160px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            border: none;
+            background: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-dropdown-item:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .user-dropdown-item.logout {
+            color: var(--danger);
+        }
+
         /* 列表区域 */
         .library-list {
             display: grid;
@@ -427,6 +493,16 @@
                             <polyline points="18 15 12 9 6 15"></polyline>
                         </svg>
                     </button>
+                </div>
+                <!-- 登录/用户菜单 -->
+                <div id="loginButton" class="btn" onclick="window.location.href='login.html'">登录</div>
+                <div id="userMenu" class="user-menu" style="display: none;">
+                    <div class="user-avatar" id="userAvatar"></div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <button class="user-dropdown-item" id="userProfile">个人资料</button>
+                        <button class="user-dropdown-item" id="userSettings">设置</button>
+                        <button class="user-dropdown-item logout" id="userLogout">退出登录</button>
+                    </div>
                 </div>
             </div>
         </div>
