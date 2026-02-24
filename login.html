@@ -559,7 +559,7 @@
         }
 
         // 表单提交处理
-        function handleLogin(event) {
+        async function handleLogin(event) {
             event.preventDefault();
             
             if (!validateLoginForm()) {
@@ -569,25 +569,42 @@
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
 
-            // 模拟登录验证
-            console.log('登录信息:', { email, password });
+            try {
+                // 调用后端API登录
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
 
-            // 存储用户信息到本地存储
-            const user = {
-                id: Date.now(),
-                email: email,
-                name: email.split('@')[0],
-                loggedIn: true
-            };
+                const data = await response.json();
 
-            localStorage.setItem('user', JSON.stringify(user));
+                if (!response.ok) {
+                    throw new Error(data.error || '登录失败');
+                }
 
-            // 登录成功后跳转到主页
-            alert('登录成功！');
-            window.location.href = 'index.html';
+                // 存储用户信息和token到本地存储
+                const user = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    loggedIn: true,
+                    token: data.token
+                };
+
+                localStorage.setItem('user', JSON.stringify(user));
+
+                // 登录成功后跳转到主页
+                alert('登录成功！');
+                window.location.href = 'index.html';
+            } catch (error) {
+                alert('登录失败：' + error.message);
+            }
         }
 
-        function handleRegister(event) {
+        async function handleRegister(event) {
             event.preventDefault();
             
             if (!validateRegisterForm()) {
@@ -598,22 +615,39 @@
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
 
-            // 模拟注册验证
-            console.log('注册信息:', { name, email, password });
+            try {
+                // 调用后端API注册
+                const response = await fetch('http://localhost:3000/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email, password })
+                });
 
-            // 存储用户信息到本地存储
-            const user = {
-                id: Date.now(),
-                name: name,
-                email: email,
-                loggedIn: true
-            };
+                const data = await response.json();
 
-            localStorage.setItem('user', JSON.stringify(user));
+                if (!response.ok) {
+                    throw new Error(data.error || '注册失败');
+                }
 
-            // 注册成功后跳转到主页
-            alert('注册成功！');
-            window.location.href = 'index.html';
+                // 存储用户信息和token到本地存储
+                const user = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    loggedIn: true,
+                    token: data.token
+                };
+
+                localStorage.setItem('user', JSON.stringify(user));
+
+                // 注册成功后跳转到主页
+                alert('注册成功！');
+                window.location.href = 'index.html';
+            } catch (error) {
+                alert('注册失败：' + error.message);
+            }
         }
 
         function handleForgotPassword(event) {

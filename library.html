@@ -621,10 +621,10 @@
         const newLibraryBtn = document.getElementById('newLibraryBtn');
 
         // 初始化
-        function init() {
-            renderLibraries();
-            bindEvents();
+        async function init() {
             checkLoginStatus();
+            bindEvents();
+            await loadLibraries();
         }
 
         // 绑定事件
@@ -661,6 +661,51 @@
                     userDropdown.classList.remove('show');
                 }
             });
+        }
+
+        // 从后端API加载画册数据
+        async function loadLibraries() {
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (!user || !user.token) {
+                    // 用户未登录，显示空状态
+                    renderLibraries();
+                    return;
+                }
+
+                // 调用后端API获取画册列表
+                const response = await fetch('http://localhost:3000/api/libraries', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // 解析 tags 字段，确保它是一个数组
+                    libraries = data.map(library => {
+                        try {
+                            library.tags = typeof library.tags === 'string' ? JSON.parse(library.tags) : library.tags;
+                            if (!Array.isArray(library.tags)) {
+                                library.tags = [];
+                            }
+                        } catch (error) {
+                            library.tags = [];
+                        }
+                        return library;
+                    });
+                } else {
+                    const error = await response.json();
+                    console.error('获取画册列表失败:', error.error);
+                    alert('获取画册列表失败: ' + (error.error || '服务器错误'));
+                }
+            } catch (error) {
+                console.error('加载画册数据失败:', error);
+                alert('加载画册数据失败: ' + error.message);
+            } finally {
+                renderLibraries();
+            }
         }
         
         // 检查登录状态
@@ -824,7 +869,7 @@
                         <div class="library-description">${library.description}</div>
                         <div class="library-meta">
                             <span>分类: ${library.category}</span>
-                            <span>标签: ${library.tags.join(', ')}</span>
+                            <span>标签: ${Array.isArray(library.tags) ? library.tags.join(', ') : library.tags}</span>
                             <span>创建时间: ${formatDate(library.createdAt)}</span>
                             <span>更新时间: ${formatDate(library.updatedAt)}</span>
                         </div>
@@ -919,15 +964,39 @@
 
 
         // 删除书馆
-        function deleteLibrary(id) {
+        async function deleteLibrary(id) {
             if (confirm('确定要删除这个书馆吗？')) {
-                libraries = libraries.filter(library => library.id !== id);
-                renderLibraries();
+                try {
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    if (!user || !user.token) {
+                        alert('请先登录');
+                        return;
+                    }
+
+                    // 调用后端API删除画册
+                    const response = await fetch(`http://localhost:3000/api/libraries/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${user.token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        // 重新加载画册列表
+                        await loadLibraries();
+                        alert('书馆删除成功！');
+                    } else {
+                        const error = await response.json();
+                        alert('删除失败：' + (error.error || '服务器错误'));
+                    }
+                } catch (error) {
+                    alert('删除失败：' + error.message);
+                }
             }
         }
 
         // 创建新书馆
-        function createNewLibrary() {
+        async function createNewLibrary() {
             const createMethod = prompt('请选择创建方式:\n1. 空白创建\n2. 从模板创建');
             
             if (createMethod === '1') {
@@ -938,32 +1007,41 @@
                     const libraryCategory = prompt('请输入书馆分类:');
                     const libraryTags = prompt('请输入书馆标签（用逗号分隔）:');
                     
-                    const newLibrary = {
-                        id: Date.now(),
-                        name: libraryName.trim(),
-                        description: libraryDescription || '暂无简介',
-                        cover: ['📚', '📷', '🎨', '✈️', '🎵', '📖', '🌟', '🌈'][Math.floor(Math.random() * 8)],
-                        category: libraryCategory || '未分类',
-                        tags: libraryTags ? libraryTags.split(',').map(tag => tag.trim()) : [],
-                        status: 'draft',
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        publishedAt: null,
-                        access: 'public',
-                        password: null,
-                        version: 1,
-                        versions: [
-                            {
-                                version: 1,
-                                createdAt: new Date().toISOString(),
-                                description: '初始版本'
-                            }
-                        ]
-                    };
-                    
-                    libraries.unshift(newLibrary);
-                    renderLibraries();
-                    alert('书馆创建成功！');
+                    try {
+                        const user = JSON.parse(localStorage.getItem('user'));
+                        if (!user || !user.token) {
+                            alert('请先登录');
+                            return;
+                        }
+
+                        // 调用后端API创建画册
+                        const response = await fetch('http://localhost:3000/api/libraries', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${user.token}`
+                            },
+                            body: JSON.stringify({
+                                name: libraryName.trim(),
+                                description: libraryDescription || '暂无简介',
+                                cover: 'default',
+                                category: libraryCategory || '未分类',
+                                tags: libraryTags ? libraryTags.split(',').map(tag => tag.trim()) : []
+                            })
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            // 重新加载画册列表
+                            await loadLibraries();
+                            alert('书馆创建成功！');
+                        } else {
+                            const error = await response.json();
+                            alert('创建失败：' + (error.error || '服务器错误'));
+                        }
+                    } catch (error) {
+                        alert('创建失败：' + error.message);
+                    }
                 }
             } else if (createMethod === '2') {
                 // 从模板创建
@@ -987,39 +1065,48 @@
                     if (libraryName && libraryName.trim()) {
                         const libraryDescription = prompt('请输入书馆简介:', selectedTemplate.description);
                         
-                        const newLibrary = {
-                            id: Date.now(),
-                            name: libraryName.trim(),
-                            description: libraryDescription || selectedTemplate.description,
-                            cover: selectedTemplate.cover,
-                            category: selectedTemplate.category,
-                            tags: [],
-                            status: 'draft',
-                            createdAt: new Date().toISOString(),
-                            updatedAt: new Date().toISOString(),
-                            publishedAt: null,
-                            access: 'public',
-                            password: null,
-                            version: 1,
-                            versions: [
-                                {
-                                    version: 1,
-                                    createdAt: new Date().toISOString(),
-                                    description: '从模板创建'
-                                }
-                            ]
-                        };
-                        
-                        libraries.unshift(newLibrary);
-                        renderLibraries();
-                        alert('书馆创建成功！');
+                        try {
+                            const user = JSON.parse(localStorage.getItem('user'));
+                            if (!user || !user.token) {
+                                alert('请先登录');
+                                return;
+                            }
+
+                            // 调用后端API创建画册
+                            const response = await fetch('http://localhost:3000/api/libraries', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${user.token}`
+                                },
+                                body: JSON.stringify({
+                                    name: libraryName.trim(),
+                                    description: libraryDescription || selectedTemplate.description,
+                                    cover: 'default',
+                                    category: selectedTemplate.category,
+                                    tags: []
+                                })
+                            });
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                // 重新加载画册列表
+                                await loadLibraries();
+                                alert('书馆创建成功！');
+                            } else {
+                                const error = await response.json();
+                                alert('创建失败：' + (error.error || '服务器错误'));
+                            }
+                        } catch (error) {
+                            alert('创建失败：' + error.message);
+                        }
                     }
                 }
             }
         }
 
         // 编辑书馆
-        function editLibrary(id) {
+        async function editLibrary(id) {
             const library = libraries.find(l => l.id === id);
             if (!library) return;
             
@@ -1027,29 +1114,48 @@
             if (newName && newName.trim()) {
                 const newDescription = prompt('请输入书馆简介:', library.description);
                 const newCategory = prompt('请输入书馆分类:', library.category);
-                const newTags = prompt('请输入书馆标签（用逗号分隔）:', library.tags.join(','));
+                const currentTags = Array.isArray(library.tags) ? library.tags.join(',') : '';
+                const newTags = prompt('请输入书馆标签（用逗号分隔）:', currentTags);
                 
-                library.name = newName.trim();
-                library.description = newDescription || library.description;
-                library.category = newCategory || library.category;
-                library.tags = newTags ? newTags.split(',').map(tag => tag.trim()) : library.tags;
-                library.updatedAt = new Date().toISOString();
-                
-                // 创建新版本
-                library.version += 1;
-                library.versions.push({
-                    version: library.version,
-                    createdAt: library.updatedAt,
-                    description: '编辑更新'
-                });
-                
-                renderLibraries();
-                alert('书馆编辑成功！');
+                try {
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    if (!user || !user.token) {
+                        alert('请先登录');
+                        return;
+                    }
+
+                    // 调用后端API更新画册
+                    const response = await fetch(`http://localhost:3000/api/libraries/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${user.token}`
+                        },
+                        body: JSON.stringify({
+                            name: newName.trim(),
+                            description: newDescription || library.description,
+                            category: newCategory || library.category,
+                            tags: newTags ? newTags.split(',').map(tag => tag.trim()) : library.tags
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // 重新加载画册列表
+                        await loadLibraries();
+                        alert('书馆编辑成功！');
+                    } else {
+                        const error = await response.json();
+                        alert('编辑失败：' + (error.error || '服务器错误'));
+                    }
+                } catch (error) {
+                    alert('编辑失败：' + error.message);
+                }
             }
         }
 
         // 发布书馆
-        function publishLibrary(id) {
+        async function publishLibrary(id) {
             const library = libraries.find(l => l.id === id);
             if (!library) return;
             
@@ -1060,35 +1166,79 @@
                 password = prompt('请设置访问密码:');
             }
             
-            library.status = 'published';
-            library.publishedAt = new Date().toISOString();
-            library.updatedAt = new Date().toISOString();
-            library.access = access === '1' ? 'public' : access === '2' ? 'password' : 'private';
-            library.password = password;
-            
-            // 创建新版本
-            library.version += 1;
-            library.versions.push({
-                version: library.version,
-                createdAt: library.updatedAt,
-                description: '发布版本'
-            });
-            
-            renderLibraries();
-            alert('书馆发布成功！');
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (!user || !user.token) {
+                    alert('请先登录');
+                    return;
+                }
+
+                // 调用后端API更新画册访问权限
+                await fetch(`http://localhost:3000/api/libraries/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${user.token}`
+                    },
+                    body: JSON.stringify({
+                        access: access === '1' ? 'public' : access === '2' ? 'password' : 'private',
+                        password: password
+                    })
+                });
+
+                // 调用后端API发布画册
+                const response = await fetch(`http://localhost:3000/api/libraries/${id}/publish`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+
+                if (response.ok) {
+                    // 重新加载画册列表
+                    await loadLibraries();
+                    alert('书馆发布成功！');
+                } else {
+                    const error = await response.json();
+                    alert('发布失败：' + (error.error || '服务器错误'));
+                }
+            } catch (error) {
+                alert('发布失败：' + error.message);
+            }
         }
 
         // 下架书馆
-        function offlineLibrary(id) {
+        async function offlineLibrary(id) {
             const library = libraries.find(l => l.id === id);
             if (!library) return;
             
             if (confirm('确定要下架这个书馆吗？下架后读者无法访问。')) {
-                library.status = 'offline';
-                library.updatedAt = new Date().toISOString();
-                
-                renderLibraries();
-                alert('书馆下架成功！');
+                try {
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    if (!user || !user.token) {
+                        alert('请先登录');
+                        return;
+                    }
+
+                    // 调用后端API下架画册
+                    const response = await fetch(`http://localhost:3000/api/libraries/${id}/offline`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${user.token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        // 重新加载画册列表
+                        await loadLibraries();
+                        alert('书馆下架成功！');
+                    } else {
+                        const error = await response.json();
+                        alert('下架失败：' + (error.error || '服务器错误'));
+                    }
+                } catch (error) {
+                    alert('下架失败：' + error.message);
+                }
             }
         }
 
@@ -1097,11 +1247,456 @@
             const library = libraries.find(l => l.id === id);
             if (!library) return;
             
-            alert('书图添加功能开发中...\n\n支持功能：\n- 批量上传图片\n- 图片裁切\n- 比例预设\n- 拖拽排序');
+            // 创建书图添加对话框
+            const dialogHtml = `
+                <div id="addImagesDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                    <div style="background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 90%; max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+                        <div style="padding: 16px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                            <h3>添加书图 - ${library.name}</h3>
+                            <button onclick="document.getElementById('addImagesDialog').remove()" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+                        </div>
+                        <div style="padding: 20px; flex: 1; overflow-y: auto;">
+                            <!-- 上传区域 -->
+                            <div style="margin-bottom: 30px;">
+                                <h4>上传图片</h4>
+                                <div style="border: 2px dashed #ccc; border-radius: 8px; padding: 30px; text-align: center; margin: 20px 0; cursor: pointer; transition: all 0.3s;">
+                                    <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
+                                    <div id="uploadArea" style="display: flex; flex-direction: column; align-items: center;">
+                                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ccc; margin-bottom: 10px;">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="17 8 12 3 7 8"></polyline>
+                                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                                        </svg>
+                                        <p style="color: #666; margin: 10px 0;">点击或拖拽图片到此处上传</p>
+                                        <p style="color: #999; font-size: 12px;">支持 JPG、PNG、GIF 格式，最多上传 20 张图片</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 图片列表 -->
+                            <div style="margin-bottom: 30px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h4>已上传图片</h4>
+                                    <div style="display: flex; gap: 10px;">
+                                        <select id="aspectRatio" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="free">自由比例</option>
+                                            <option value="1:1">1:1 正方形</option>
+                                            <option value="4:3">4:3</option>
+                                            <option value="16:9">16:9</option>
+                                            <option value="3:4">3:4</option>
+                                            <option value="9:16">9:16</option>
+                                        </select>
+                                        <button id="sortButton" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M8 7h12"></path>
+                                                <path d="M16 17h4"></path>
+                                                <path d="M12 17h-4"></path>
+                                                <path d="M3 17V7a2 2 0 0 1 2-2h6"></path>
+                                                <path d="M13 17a2 2 0 0 1 2-2h6"></path>
+                                                <path d="M11 12V5"></path>
+                                                <path d="M21 12v7"></path>
+                                            </svg>
+                                            排序
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="imageList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+                                    <!-- 图片将通过 JavaScript 动态添加 -->
+                                </div>
+                            </div>
+                        </div>
+                        <div style="padding: 16px; background: #f5f5f5; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px;">
+                            <button onclick="document.getElementById('addImagesDialog').remove()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                            <button id="saveImagesBtn" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            // 模拟添加图片
-            library.updatedAt = new Date().toISOString();
-            renderLibraries();
+            document.body.insertAdjacentHTML('beforeend', dialogHtml);
+            
+            // 初始化变量
+            const uploadArea = document.getElementById('uploadArea');
+            const imageInput = document.getElementById('imageInput');
+            const imageList = document.getElementById('imageList');
+            const aspectRatio = document.getElementById('aspectRatio');
+            const sortButton = document.getElementById('sortButton');
+            const saveImagesBtn = document.getElementById('saveImagesBtn');
+            const addImagesDialog = document.getElementById('addImagesDialog');
+            
+            let uploadedImages = [];
+            let isSorting = false;
+            
+            // 点击上传区域触发文件选择
+            uploadArea.addEventListener('click', () => {
+                imageInput.click();
+            });
+            
+            // 拖拽上传
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '#f0f8ff';
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.backgroundColor = '';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '';
+                
+                if (e.dataTransfer.files.length > 0) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            });
+            
+            // 文件选择
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFiles(e.target.files);
+                }
+            });
+            
+            // 处理文件上传
+            function handleFiles(files) {
+                const fileArray = Array.from(files);
+                const validFiles = fileArray.filter(file => file.type.startsWith('image/'));
+                
+                if (validFiles.length === 0) {
+                    alert('请选择图片文件！');
+                    return;
+                }
+                
+                if (uploadedImages.length + validFiles.length > 20) {
+                    alert('最多只能上传 20 张图片！');
+                    return;
+                }
+                
+                validFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const imageUrl = e.target.result;
+                        const imageId = Date.now() + Math.random();
+                        
+                        uploadedImages.push({
+                            id: imageId,
+                            url: imageUrl,
+                            name: file.name,
+                            width: 0,
+                            height: 0
+                        });
+                        
+                        addImageToGrid(imageId, imageUrl, file.name);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            // 添加图片到网格
+            function addImageToGrid(imageId, imageUrl, fileName) {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'image-item';
+                imageItem.dataset.id = imageId;
+                imageItem.style = `
+                    position: relative;
+                    border: 2px solid #ddd;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    aspect-ratio: 1/1;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                `;
+                
+                imageItem.innerHTML = `
+                    <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: white; padding: 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${fileName}
+                    </div>
+                    <button class="delete-image" style="position: absolute; top: 5px; right: 5px; background: rgba(255,0,0,0.8); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                        ×
+                    </button>
+                    <div class="drag-handle" style="position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: grab; display: none;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="9" cy="12" r="1"></circle>
+                            <circle cx="15" cy="12" r="1"></circle>
+                            <circle cx="9" cy="19" r="1"></circle>
+                            <circle cx="15" cy="19" r="1"></circle>
+                            <circle cx="9" cy="5" r="1"></circle>
+                            <circle cx="15" cy="5" r="1"></circle>
+                        </svg>
+                    </div>
+                `;
+                
+                imageList.appendChild(imageItem);
+                
+                // 删除图片
+                const deleteBtn = imageItem.querySelector('.delete-image');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const imageId = parseInt(imageItem.dataset.id);
+                    uploadedImages = uploadedImages.filter(img => img.id !== imageId);
+                    imageItem.remove();
+                });
+                
+                // 点击图片进行裁切
+                imageItem.addEventListener('click', (e) => {
+                    if (!e.target.closest('.delete-image') && !e.target.closest('.drag-handle')) {
+                        const imageId = parseInt(imageItem.dataset.id);
+                        const image = uploadedImages.find(img => img.id === imageId);
+                        if (image) {
+                            cropImage(image, imageItem);
+                        }
+                    }
+                });
+            }
+            
+            // 图片裁切功能
+            function cropImage(image, imageItem) {
+                const cropDialogHtml = `
+                    <div id="cropDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+                        <div style="background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); width: 90%; max-width: 600px; overflow: hidden;">
+                            <div style="padding: 16px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                                <h3>图片裁切</h3>
+                                <button onclick="document.getElementById('cropDialog').remove()" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+                            </div>
+                            <div style="padding: 20px;">
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; margin-bottom: 8px;">选择比例：</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="crop-ratio" data-ratio="free" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; background: ${aspectRatio.value === 'free' ? '#007bff' : 'white'}; color: ${aspectRatio.value === 'free' ? 'white' : '#333'}; cursor: pointer;">自由</button>
+                                        <button class="crop-ratio" data-ratio="1:1" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; background: ${aspectRatio.value === '1:1' ? '#007bff' : 'white'}; color: ${aspectRatio.value === '1:1' ? 'white' : '#333'}; cursor: pointer;">1:1</button>
+                                        <button class="crop-ratio" data-ratio="4:3" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; background: ${aspectRatio.value === '4:3' ? '#007bff' : 'white'}; color: ${aspectRatio.value === '4:3' ? 'white' : '#333'}; cursor: pointer;">4:3</button>
+                                        <button class="crop-ratio" data-ratio="16:9" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; background: ${aspectRatio.value === '16:9' ? '#007bff' : 'white'}; color: ${aspectRatio.value === '16:9' ? 'white' : '#333'}; cursor: pointer;">16:9</button>
+                                    </div>
+                                </div>
+                                <div style="position: relative; width: 100%; height: 400px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; margin-bottom: 20px;">
+                                    <img id="cropImage" src="${image.url}" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <div id="cropArea" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border: 2px dashed #007bff; background: rgba(0,123,255,0.1); cursor: move;"></div>
+                                </div>
+                            </div>
+                            <div style="padding: 16px; background: #f5f5f5; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px;">
+                                <button onclick="document.getElementById('cropDialog').remove()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                                <button id="applyCrop" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">应用</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', cropDialogHtml);
+                
+                const cropDialog = document.getElementById('cropDialog');
+                const cropImage = document.getElementById('cropImage');
+                const cropArea = document.getElementById('cropArea');
+                const applyCrop = document.getElementById('applyCrop');
+                const cropRatios = document.querySelectorAll('.crop-ratio');
+                
+                // 比例选择
+                cropRatios.forEach(ratio => {
+                    ratio.addEventListener('click', () => {
+                        cropRatios.forEach(r => {
+                            r.style.background = 'white';
+                            r.style.color = '#333';
+                        });
+                        ratio.style.background = '#007bff';
+                        ratio.style.color = 'white';
+                        
+                        const ratioValue = ratio.dataset.ratio;
+                        adjustCropArea(ratioValue);
+                    });
+                });
+                
+                // 调整裁切区域
+                function adjustCropArea(ratio) {
+                    const containerWidth = cropImage.parentElement.offsetWidth;
+                    const containerHeight = cropImage.parentElement.offsetHeight;
+                    
+                    if (ratio === 'free') {
+                        cropArea.style.width = '50%';
+                        cropArea.style.height = '50%';
+                    } else if (ratio === '1:1') {
+                        const size = Math.min(containerWidth, containerHeight) * 0.7;
+                        cropArea.style.width = `${size}px`;
+                        cropArea.style.height = `${size}px`;
+                    } else if (ratio === '4:3') {
+                        const width = containerWidth * 0.8;
+                        const height = width * 3 / 4;
+                        cropArea.style.width = `${width}px`;
+                        cropArea.style.height = `${height}px`;
+                    } else if (ratio === '16:9') {
+                        const width = containerWidth * 0.8;
+                        const height = width * 9 / 16;
+                        cropArea.style.width = `${width}px`;
+                        cropArea.style.height = `${height}px`;
+                    }
+                    
+                    // 居中裁切区域
+                    cropArea.style.top = `${(containerHeight - cropArea.offsetHeight) / 2}px`;
+                    cropArea.style.left = `${(containerWidth - cropArea.offsetWidth) / 2}px`;
+                }
+                
+                // 拖拽裁切区域
+                let isDragging = false;
+                let startX, startY, startLeft, startTop;
+                
+                cropArea.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = parseInt(cropArea.style.left || '0');
+                    startTop = parseInt(cropArea.style.top || '0');
+                    cropArea.style.cursor = 'grabbing';
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) {
+                        const deltaX = e.clientX - startX;
+                        const deltaY = e.clientY - startY;
+                        cropArea.style.left = `${Math.max(0, Math.min(startLeft + deltaX, cropImage.parentElement.offsetWidth - cropArea.offsetWidth))}px`;
+                        cropArea.style.top = `${Math.max(0, Math.min(startTop + deltaY, cropImage.parentElement.offsetHeight - cropArea.offsetHeight))}px`;
+                    }
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    cropArea.style.cursor = 'move';
+                });
+                
+                // 应用裁切
+                applyCrop.addEventListener('click', () => {
+                    // 这里可以实现实际的裁切逻辑
+                    // 由于是前端模拟，我们只做简单的提示
+                    alert('裁切功能已应用！');
+                    cropDialog.remove();
+                });
+            }
+            
+            // 排序功能
+            sortButton.addEventListener('click', () => {
+                isSorting = !isSorting;
+                const dragHandles = document.querySelectorAll('.drag-handle');
+                
+                if (isSorting) {
+                    sortButton.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 7h12"></path>
+                            <path d="M16 17h4"></path>
+                            <path d="M12 17h-4"></path>
+                            <path d="M3 17V7a2 2 0 0 1 2-2h6"></path>
+                            <path d="M13 17a2 2 0 0 1 2-2h6"></path>
+                            <path d="M11 12V5"></path>
+                            <path d="M21 12v7"></path>
+                        </svg>
+                        完成排序
+                    `;
+                    
+                    // 显示拖拽手柄
+                    dragHandles.forEach(handle => {
+                        handle.style.display = 'flex';
+                    });
+                    
+                    // 实现简单的拖拽排序
+                    const imageItems = document.querySelectorAll('.image-item');
+                    imageItems.forEach(item => {
+                        item.style.cursor = 'grab';
+                        
+                        item.addEventListener('mousedown', (e) => {
+                            if (e.target.closest('.drag-handle')) {
+                                item.style.cursor = 'grabbing';
+                                item.style.opacity = '0.5';
+                                item.style.zIndex = '1000';
+                                
+                                let startX = e.clientX;
+                                let startY = e.clientY;
+                                let startIndex = Array.from(imageItems).indexOf(item);
+                                
+                                function onMouseMove(e) {
+                                    const deltaX = e.clientX - startX;
+                                    const deltaY = e.clientY - startY;
+                                    item.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                                    
+                                    // 计算新位置
+                                    const rect = item.getBoundingClientRect();
+                                    const centerX = rect.left + rect.width / 2;
+                                    const centerY = rect.top + rect.height / 2;
+                                    
+                                    Array.from(imageItems).forEach((otherItem, index) => {
+                                        if (otherItem !== item) {
+                                            const otherRect = otherItem.getBoundingClientRect();
+                                            if (
+                                                centerX > otherRect.left &&
+                                                centerX < otherRect.right &&
+                                                centerY > otherRect.top &&
+                                                centerY < otherRect.bottom
+                                            ) {
+                                                if (index < startIndex) {
+                                                    imageList.insertBefore(item, otherItem);
+                                                } else {
+                                                    imageList.insertBefore(item, otherItem.nextSibling);
+                                                }
+                                                startIndex = index;
+                                            }
+                                        }
+                                    });
+                                }
+                                
+                                function onMouseUp() {
+                                    item.style.cursor = 'grab';
+                                    item.style.opacity = '1';
+                                    item.style.zIndex = '1';
+                                    item.style.transform = '';
+                                    
+                                    document.removeEventListener('mousemove', onMouseMove);
+                                    document.removeEventListener('mouseup', onMouseUp);
+                                }
+                                
+                                document.addEventListener('mousemove', onMouseMove);
+                                document.addEventListener('mouseup', onMouseUp);
+                            }
+                        });
+                    });
+                } else {
+                    sortButton.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 7h12"></path>
+                            <path d="M16 17h4"></path>
+                            <path d="M12 17h-4"></path>
+                            <path d="M3 17V7a2 2 0 0 1 2-2h6"></path>
+                            <path d="M13 17a2 2 0 0 1 2-2h6"></path>
+                            <path d="M11 12V5"></path>
+                            <path d="M21 12v7"></path>
+                        </svg>
+                        排序
+                    `;
+                    
+                    // 隐藏拖拽手柄
+                    dragHandles.forEach(handle => {
+                        handle.style.display = 'none';
+                    });
+                    
+                    // 重置排序状态
+                    const imageItems = document.querySelectorAll('.image-item');
+                    imageItems.forEach(item => {
+                        item.style.cursor = 'pointer';
+                    });
+                }
+            });
+            
+            // 保存图片
+            saveImagesBtn.addEventListener('click', () => {
+                if (uploadedImages.length === 0) {
+                    alert('请先上传图片！');
+                    return;
+                }
+                
+                // 模拟保存图片
+                library.updatedAt = new Date().toISOString();
+                library.images = uploadedImages;
+                
+                renderLibraries();
+                addImagesDialog.remove();
+                alert('图片添加成功！');
+            });
         }
 
         // 上传封面图
@@ -1309,7 +1904,7 @@
                             <p style="color: #666; margin: 10px 0;">${library.description}</p>
                             <div style="color: #999; font-size: 14px; margin-top: 20px;">
                                 分类: ${library.category}<br>
-                                标签: ${library.tags.join(', ')}
+                                标签: ${Array.isArray(library.tags) ? library.tags.join(', ') : library.tags}
                             </div>
                         </div>
                     </div>

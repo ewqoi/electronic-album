@@ -1298,9 +1298,69 @@
             }
         }
 
+        // 检查登录状态
+        function checkLoginStatus() {
+            const user = localStorage.getItem('user');
+            const loginButton = document.getElementById('loginButton');
+            const userMenu = document.getElementById('userMenu');
+            const userAvatar = document.getElementById('userAvatar');
+            
+            if (user) {
+                const userData = JSON.parse(user);
+                // 显示用户菜单
+                loginButton.style.display = 'none';
+                userMenu.style.display = 'inline-block';
+                
+                // 设置用户头像
+                if (userAvatar) {
+                    const initial = userData.name.charAt(0).toUpperCase();
+                    userAvatar.textContent = initial;
+                }
+            } else {
+                // 显示登录按钮
+                loginButton.style.display = 'block';
+                userMenu.style.display = 'none';
+            }
+        }
+
+        // 切换用户下拉菜单
+        function toggleUserDropdown() {
+            const userDropdown = document.getElementById('userDropdown');
+            userDropdown.classList.toggle('show');
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('user');
+            alert('已退出登录');
+            window.location.reload();
+        }
+
         // 初始化应用
         initTheme();
         init();
+        checkLoginStatus();
+        
+        // 绑定用户菜单事件
+        const userAvatar = document.getElementById('userAvatar');
+        if (userAvatar) {
+            userAvatar.addEventListener('click', toggleUserDropdown);
+        }
+        
+        // 退出登录按钮点击事件
+        const userLogout = document.getElementById('userLogout');
+        if (userLogout) {
+            userLogout.addEventListener('click', logout);
+        }
+        
+        // 点击页面其他地方关闭下拉菜单
+        document.addEventListener('click', function(event) {
+            const userMenu = document.getElementById('userMenu');
+            const userDropdown = document.getElementById('userDropdown');
+            if (userMenu && !userMenu.contains(event.target)) {
+                userDropdown.classList.remove('show');
+            }
+        });
     </script>
 </body>
 </html>
