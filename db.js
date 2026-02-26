@@ -28,6 +28,14 @@ const User = sequelize.define('User', {
   password: {
     type: DataTypes.STRING,
     allowNull: false
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
 });
 
@@ -59,6 +67,10 @@ const Library = sequelize.define('Library', {
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
 });
 
@@ -86,6 +98,46 @@ const Page = sequelize.define('Page', {
   },
   imageUrl: {
     type: DataTypes.STRING
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  }
+});
+
+// 定义画册版本模型
+const LibraryVersion = sequelize.define('LibraryVersion', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  libraryId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: Library,
+      key: 'id'
+    }
+  },
+  version: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  description: {
+    type: DataTypes.STRING
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
 });
 
@@ -94,10 +146,13 @@ User.hasMany(Library, { foreignKey: 'userId' });
 Library.belongsTo(User, { foreignKey: 'userId' });
 Library.hasMany(Page, { foreignKey: 'libraryId' });
 Page.belongsTo(Library, { foreignKey: 'libraryId' });
+Library.hasMany(LibraryVersion, { foreignKey: 'libraryId' });
+LibraryVersion.belongsTo(Library, { foreignKey: 'libraryId' });
 
 module.exports = {
   sequelize,
   User,
   Library,
-  Page
+  Page,
+  LibraryVersion
 };

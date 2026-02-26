@@ -38,8 +38,9 @@ router.post('/register', async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('注册错误:', error);
-    res.status(500).json({ error: '服务器错误' });
+    console.error('注册错误:', error.message);
+    console.error('注册错误堆栈:', error.stack);
+    res.status(500).json({ error: '服务器错误', message: error.message });
   }
 });
 
@@ -73,8 +74,9 @@ router.post('/login', async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('登录错误:', error);
-    res.status(500).json({ error: '服务器错误' });
+    console.error('登录错误:', error.message);
+    console.error('登录错误堆栈:', error.stack);
+    res.status(500).json({ error: '服务器错误', message: error.message });
   }
 });
 
