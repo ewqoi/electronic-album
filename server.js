@@ -21,6 +21,11 @@ app.use(express.static(__dirname));
 app.use('/api/auth', authRoutes);
 app.use('/api/libraries', libraryRoutes);
 
+// 根路径重定向到home.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'home.html'));
+});
+
 // 健康检查
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
