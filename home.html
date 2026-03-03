@@ -288,6 +288,79 @@
             background-color: var(--bg-secondary);
         }
 
+        /* 3D翻书效果 */
+        .book-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            perspective: 1500px;
+            margin-bottom: 24px;
+        }
+
+        .book {
+            width: 100%;
+            height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+            cursor: pointer;
+        }
+
+        .book-page {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            transform-origin: left center;
+            transition: transform 0.5s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            border-radius: 0 8px 8px 0;
+            overflow: hidden;
+        }
+
+        .book-cover {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform-origin: right center;
+        }
+
+        .book-cover h3 {
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        .book-cover p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .book-page-front {
+            transform: rotateY(0deg);
+        }
+
+        .book-page-back {
+            transform: rotateY(-180deg);
+        }
+
+        .book.flipped .book-page-front {
+            transform: rotateY(180deg);
+        }
+
+        .book.flipped .book-page-back {
+            transform: rotateY(0deg);
+        }
+
         /* 书架样式 */
         .bookshelf-container {
             position: relative;
@@ -357,7 +430,7 @@
             justify-content: center;
         }
 
-        .book {
+        .book-item {
             width: 120px;
             height: 160px;
             border-radius: 4px;
@@ -371,13 +444,14 @@
             position: relative;
             overflow: hidden;
             transition: transform 0.3s ease;
+            cursor: pointer;
         }
 
-        .book:hover {
+        .book-item:hover {
             transform: translateY(-5px);
         }
 
-        .book::before {
+        .book-item::before {
             content: '';
             position: absolute;
             top: 0;
@@ -684,12 +758,40 @@
                 <div class="bookshelf-container">
                     <a href="#" class="case-link">打开翻页案例</a>
                     
+                    <!-- 3D翻书效果 -->
+                    <div class="book-container">
+                        <div class="book" id="flipBook" onclick="toggleFlipBook()">
+                            <div class="book-cover">
+                                <h3>电子画册</h3>
+                                <p>3D翻书效果演示</p>
+                            </div>
+                            <div class="book-page book-page-front">
+                                <div style="padding: 20px;">
+                                    <h4>欢迎使用电子画册</h4>
+                                    <p>上传文件，制作精美的3D翻页电子书</p>
+                                    <p>支持PDF、图片、Word等多种格式</p>
+                                </div>
+                            </div>
+                            <div class="book-page book-page-back">
+                                <div style="padding: 20px;">
+                                    <h4>功能特点</h4>
+                                    <ul style="list-style: none; padding: 0;">
+                                        <li style="margin-bottom: 10px;">• 3D仿真翻页效果</li>
+                                        <li style="margin-bottom: 10px;">• 一键分享至微信</li>
+                                        <li style="margin-bottom: 10px;">• 多端适配</li>
+                                        <li style="margin-bottom: 10px;">• 交互式体验</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- 上层书架 -->
                     <div class="bookshelf">
                         <div class="books">
-                            <div class="book book-1">企业宣传</div>
-                            <div class="book book-2">产品画册</div>
-                            <div class="book book-3">教辅教材</div>
+                            <div class="book-item book-1">企业宣传</div>
+                            <div class="book-item book-2">产品画册</div>
+                            <div class="book-item book-3">教辅教材</div>
                         </div>
                         <div class="shelf"></div>
                         <div class="shelf-brackets">
@@ -706,9 +808,9 @@
                     <!-- 下层书架 -->
                     <div class="bookshelf">
                         <div class="books">
-                            <div class="book book-4">企业内刊</div>
-                            <div class="book book-5">招生手册</div>
-                            <div class="book book-6">期刊杂志</div>
+                            <div class="book-item book-4">企业内刊</div>
+                            <div class="book-item book-5">招生手册</div>
+                            <div class="book-item book-6">期刊杂志</div>
                         </div>
                         <div class="shelf"></div>
                         <div class="shelf-brackets">
@@ -826,6 +928,12 @@
                 userDropdown.classList.remove('show');
             }
         });
+        
+        // 3D翻书效果
+        function toggleFlipBook() {
+            const flipBook = document.getElementById('flipBook');
+            flipBook.classList.toggle('flipped');
+        }
         
         // 页面加载时检查登录状态
         document.addEventListener('DOMContentLoaded', checkLoginStatus);
